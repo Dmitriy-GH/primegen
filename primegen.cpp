@@ -101,7 +101,7 @@ void prime_init(uint64_t max)
 }
 
 // запуск потоков расчета и сбор результатов
-int prime_calc_mt(uint64_t from, uint64_t to, FILE* f, int width, int thread_cnt)
+int64_t prime_calc_mt(uint64_t from, uint64_t to, FILE* f, int width, int thread_cnt)
 {
 	if (from & 1) from--; // делаем четным чтобы не пропустить простое from
 	if (from <= 2) from = 1;
@@ -129,7 +129,7 @@ int prime_calc_mt(uint64_t from, uint64_t to, FILE* f, int width, int thread_cnt
 	// Ожидание завершения потоков
 	for (int i = 0; i < thread_cnt; i++) th[i].join();
 	// Вывод результатов
-	int cnt = 0;
+	int64_t cnt = 0;
 	for (int i = 0; i != res.size(); i++) {
 		if (res[i].state != ST_END) {
 			cnt = -1;
@@ -143,11 +143,11 @@ int prime_calc_mt(uint64_t from, uint64_t to, FILE* f, int width, int thread_cnt
 
 //***************************************************************************************
 // Расчет в одном потоке, возвращает количество найденых простых
-int prime_calc(uint64_t from, uint64_t to, FILE* f, int width)
+int64_t prime_calc(uint64_t from, uint64_t to, FILE* f, int width)
 {
 	if (from & 1) from--; // делаем четным чтобы не пропустить простое from
 	if (from <= 2) from = 1;
-	int cnt = 0;
+	int64_t cnt = 0;
 	uint64_t step = (to - from) / 100; // для индикатора расчета
 	uint64_t show = from; // следующий вывод индикатора
 
@@ -218,7 +218,7 @@ int main(int argc, char* argv[])
 			printf("\n");
 		}
 		clock_t s = clock();
-		int cnt;
+		int64_t cnt;
 		if (th_cnt > 1) {
 			cnt = prime_calc_mt(from, to, f, width, th_cnt);
 		}
@@ -230,11 +230,12 @@ int main(int argc, char* argv[])
 				fclose(f);
 				remove(file);
 			}
+			printf("Error\n");
 		}
 		else {
 			if (f) fclose(f);
 			int time = (int)((clock() - s) * 1000 / CLOCKS_PER_SEC);
-			printf("Count %d primes. Time: %d msec. Speed: %dK/sec\n", cnt, time, cnt / (time | 1));
+			printf("Count %lld primes. Time: %d msec. Speed: %lldK/sec\n", cnt, time, cnt / (time | 1));
 		}
 	}
 #ifdef _DEBUG
