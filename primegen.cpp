@@ -1,4 +1,4 @@
-// Генератор простых чисел в заданном диапазоне до 2^64
+п»ї// Р“РµРЅРµСЂР°С‚РѕСЂ РїСЂРѕСЃС‚С‹С… С‡РёСЃРµР» РІ Р·Р°РґР°РЅРЅРѕРј РґРёР°РїР°Р·РѕРЅРµ РґРѕ 2^64
 #define _CRT_SECURE_NO_WARNINGS
 #include <time.h>
 #ifdef WIN32
@@ -7,81 +7,84 @@
 #endif
 #include "next_prime64.h" 
 
-// Сохранение результата в файл
+// РЎРѕС…СЂР°РЅРµРЅРёРµ СЂРµР·СѓР»СЊС‚Р°С‚Р° РІ С„Р°Р№Р»
 bool prime_store(uint64_t x, FILE* f, int width)
 {
 	char buf[32];
 	int len = sprintf(buf, "%llu", x);
-	if(width > 0) {
+	if (width > 0) {
 		static int line = 0;
 		buf[len++] = ',';
 		line += len;
-		if(line >= width) {
+		if (line >= width) {
 			line = 0;
 			buf[len++] = 0xD;
 			buf[len++] = 0xA;
 		}
-	} else {
+	}
+	else {
 		buf[len++] = 0xD;
 		buf[len++] = 0xA;
 	}
-	if(fwrite(buf, 1, len, f) != len) {
+	if (fwrite(buf, 1, len, f) != len) {
 		printf("error write data\n");
 		return false;
-	} else {
+	}
+	else {
 		return true;
 	}
 }
 //***************************************************************************************
-// Многопоточный расчет
+// РњРЅРѕРіРѕРїРѕС‚РѕС‡РЅС‹Р№ СЂР°СЃС‡РµС‚
 #include <thread>
 #include <mutex>  
 #include <vector>
 
-// состояния обработки
-#define ST_INIT 1 // готов к обсчету
-#define ST_CALC 2 // обсчитрывается
-#define ST_END  3 // готово
-#define ST_ERR  4 // были ошибки
+// СЃРѕСЃС‚РѕСЏРЅРёСЏ РѕР±СЂР°Р±РѕС‚РєРё
+#define ST_INIT 1 // РіРѕС‚РѕРІ Рє РѕР±СЃС‡РµС‚Сѓ
+#define ST_CALC 2 // РѕР±СЃС‡РёС‚СЂС‹РІР°РµС‚СЃСЏ
+#define ST_END  3 // РіРѕС‚РѕРІРѕ
+#define ST_ERR  4 // Р±С‹Р»Рё РѕС€РёР±РєРё
 
-// задание для обсчета интервала
+// Р·Р°РґР°РЅРёРµ РґР»СЏ РѕР±СЃС‡РµС‚Р° РёРЅС‚РµСЂРІР°Р»Р°
 typedef struct {
-	uint64_t from; // начало интервала
-	uint64_t to; // конец интервала
-	int cnt; // кол-во простых
-	int state; // состояние
+	uint64_t from; // РЅР°С‡Р°Р»Рѕ РёРЅС‚РµСЂРІР°Р»Р°
+	uint64_t to; // РєРѕРЅРµС† РёРЅС‚РµСЂРІР°Р»Р°
+	int cnt; // РєРѕР»-РІРѕ РїСЂРѕСЃС‚С‹С…
+	int state; // СЃРѕСЃС‚РѕСЏРЅРёРµ
 } interval_t;
 
-std::vector<interval_t> res; // интервалы для обсчета и результаты
-std::mutex res_change; // синхронизация доступа к res
+std::vector<interval_t> res; // РёРЅС‚РµСЂРІР°Р»С‹ РґР»СЏ РѕР±СЃС‡РµС‚Р° Рё СЂРµР·СѓР»СЊС‚Р°С‚С‹
+std::mutex res_change; // СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РґРѕСЃС‚СѓРїР° Рє res
 
-// Поток расчета
+					   // РџРѕС‚РѕРє СЂР°СЃС‡РµС‚Р°
 void prime_thread(int block)
 {
-	prime_bitmap_t pb = {0}; // биткарта текущего потока
-	bool calc_up = true; // считаем последовательно вверх
-	while(block >= 0) {
-		// обсчет res[block]
+	prime_bitmap_t pb = { 0 }; // Р±РёС‚РєР°СЂС‚Р° С‚РµРєСѓС‰РµРіРѕ РїРѕС‚РѕРєР°
+	bool calc_up = true; // СЃС‡РёС‚Р°РµРј РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ РІРІРµСЂС…
+	while (block >= 0) {
+		// РѕР±СЃС‡РµС‚ res[block]
 		interval_t* v = &res[block];
 		uint64_t x = next_prime(v->from, &pb);
-		while(x <= v->to) {
+		while (x <= v->to) {
 			v->cnt++;
 			x = next_prime(x, &pb);
 		}
-		// выбор очередного блока
+		// РІС‹Р±РѕСЂ РѕС‡РµСЂРµРґРЅРѕРіРѕ Р±Р»РѕРєР°
 		res_change.lock();
 		v->state = (x == 0) ? ST_ERR : ST_END;
-		if(calc_up) { 
-			block++; //следующий в своем интервале
-			if(block != res.size() && res[block].state == ST_INIT) {
+		if (calc_up) {
+			block++; //СЃР»РµРґСѓСЋС‰РёР№ РІ СЃРІРѕРµРј РёРЅС‚РµСЂРІР°Р»Рµ
+			if (block != res.size() && res[block].state == ST_INIT) {
 				res[block].state = ST_CALC;
-			} else {
+			}
+			else {
 				calc_up = false;
 			}
 		}
-		if(!calc_up) { // поиск необсчитанных в чужих интервалах
-			for(block = (int)res.size() - 1; block >= 0; block--) {
-				if(res[block].state == ST_INIT) {
+		if (!calc_up) { // РїРѕРёСЃРє РЅРµРѕР±СЃС‡РёС‚Р°РЅРЅС‹С… РІ С‡СѓР¶РёС… РёРЅС‚РµСЂРІР°Р»Р°С…
+			for (block = (int)res.size() - 1; block >= 0; block--) {
+				if (res[block].state == ST_INIT) {
 					res[block].state = ST_CALC;
 					break;
 				}
@@ -91,77 +94,77 @@ void prime_thread(int block)
 	}
 }
 
-// поток инициализации кэша next_prime()
+// РїРѕС‚РѕРє РёРЅРёС†РёР°Р»РёР·Р°С†РёРё РєСЌС€Р° next_prime()
 void prime_init(uint64_t max)
 {
-	next_prime(max); 
+	next_prime(max);
 }
 
-// запуск потоков расчета и сбор результатов
+// Р·Р°РїСѓСЃРє РїРѕС‚РѕРєРѕРІ СЂР°СЃС‡РµС‚Р° Рё СЃР±РѕСЂ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ
 int prime_calc_mt(uint64_t from, uint64_t to, FILE* f, int width, int thread_cnt)
 {
-	if(from & 1) from--; // делаем четным чтобы не пропустить простое from
-	if(from <= 2) from = 1;
+	if (from & 1) from--; // РґРµР»Р°РµРј С‡РµС‚РЅС‹Рј С‡С‚РѕР±С‹ РЅРµ РїСЂРѕРїСѓСЃС‚РёС‚СЊ РїСЂРѕСЃС‚РѕРµ from
+	if (from <= 2) from = 1;
 	std::thread th_init(prime_init, to);
-	// формирование заданий блоками кратными PRIME_BUF (окно решета)
-	for(uint64_t i = from; i < to; i += PRIME_BUF - (i & (PRIME_BUF - 1))) {
-		interval_t v = {0};
+	// С„РѕСЂРјРёСЂРѕРІР°РЅРёРµ Р·Р°РґР°РЅРёР№ Р±Р»РѕРєР°РјРё РєСЂР°С‚РЅС‹РјРё PRIME_BUF (РѕРєРЅРѕ СЂРµС€РµС‚Р°)
+	for (uint64_t i = from; i < to; i += PRIME_BUF - (i & (PRIME_BUF - 1))) {
+		interval_t v = { 0 };
 		v.from = i;
 		v.to = i + PRIME_BUF - (i & (PRIME_BUF - 1)) - 1;
-		if(v.to > to) v.to = to;
+		if (v.to > to) v.to = to;
 		v.state = ST_INIT;
 		res.push_back(v);
 	}
-	// инициализация кэша
+	// РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєСЌС€Р°
 	th_init.join();
-	// запуск потоков расчета
+	// Р·Р°РїСѓСЃРє РїРѕС‚РѕРєРѕРІ СЂР°СЃС‡РµС‚Р°
 	std::vector<std::thread> th;
-	for(int i = 0; i < thread_cnt; i++) {
-		int first = (int)res.size() * i / thread_cnt; // номер первого блока для потока
+	for (int i = 0; i < thread_cnt; i++) {
+		int first = (int)res.size() * i / thread_cnt; // РЅРѕРјРµСЂ РїРµСЂРІРѕРіРѕ Р±Р»РѕРєР° РґР»СЏ РїРѕС‚РѕРєР°
 		res_change.lock();
 		res[first].state = ST_CALC;
 		res_change.unlock();
 		th.push_back(std::thread(prime_thread, first));
 	}
-	// Ожидание завершения потоков
-	for(int i = 0; i < thread_cnt; i++) th[i].join();
-	// Вывод результатов
+	// РћР¶РёРґР°РЅРёРµ Р·Р°РІРµСЂС€РµРЅРёСЏ РїРѕС‚РѕРєРѕРІ
+	for (int i = 0; i < thread_cnt; i++) th[i].join();
+	// Р’С‹РІРѕРґ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ
 	int cnt = 0;
-	for(int i = 0; i != res.size(); i++) {
-		if(res[i].state != ST_END) {
+	for (int i = 0; i != res.size(); i++) {
+		if (res[i].state != ST_END) {
 			cnt = -1;
 			break;
 		}
 		cnt += res[i].cnt;
 	}
-	next_prime(0); // освобождение памяти
+	next_prime(0); // РѕСЃРІРѕР±РѕР¶РґРµРЅРёРµ РїР°РјСЏС‚Рё
 	return cnt;
 }
 
 //***************************************************************************************
-// Расчет в одном потоке, возвращает количество найденых простых
+// Р Р°СЃС‡РµС‚ РІ РѕРґРЅРѕРј РїРѕС‚РѕРєРµ, РІРѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»РёС‡РµСЃС‚РІРѕ РЅР°Р№РґРµРЅС‹С… РїСЂРѕСЃС‚С‹С…
 int prime_calc(uint64_t from, uint64_t to, FILE* f, int width)
 {
-	if(from & 1) from--; // делаем четным чтобы не пропустить простое from
-	if(from <= 2) from = 1;
+	if (from & 1) from--; // РґРµР»Р°РµРј С‡РµС‚РЅС‹Рј С‡С‚РѕР±С‹ РЅРµ РїСЂРѕРїСѓСЃС‚РёС‚СЊ РїСЂРѕСЃС‚РѕРµ from
+	if (from <= 2) from = 1;
 	int cnt = 0;
-	uint64_t step = (to - from) / 100; // для индикатора расчета
-	uint64_t show = from; // следующий вывод индикатора
+	uint64_t step = (to - from) / 100; // РґР»СЏ РёРЅРґРёРєР°С‚РѕСЂР° СЂР°СЃС‡РµС‚Р°
+	uint64_t show = from; // СЃР»РµРґСѓСЋС‰РёР№ РІС‹РІРѕРґ РёРЅРґРёРєР°С‚РѕСЂР°
 
 	uint64_t x = next_prime(from);
-	while(x && x < to) {
+	while (x && x < to) {
 		cnt++;
-		if(f) {
-			if(!prime_store(x, f, width)) break;
-			if(show < x) { // вывод индикатора 
+		if (f) {
+			if (!prime_store(x, f, width)) break;
+			if (show < x) { // РІС‹РІРѕРґ РёРЅРґРёРєР°С‚РѕСЂР° 
 				printf("complite %d%%\r", (int)((show - from) / step));
 				show += step;
 			}
 		}
 		x = next_prime(x);
 	}
-	next_prime(0); // освобождение памяти
-	if(x == 0) cnt = -1; // ошибка в next_prime()
+	next_prime(0); // РѕСЃРІРѕР±РѕР¶РґРµРЅРёРµ РїР°РјСЏС‚Рё
+	if (x == 0) cnt = -1; // РѕС€РёР±РєР° РІ next_prime()
 	return cnt;
 }
 
@@ -174,65 +177,68 @@ int main(int argc, char* argv[])
 	uint64_t to = 0;
 	int width = 0;
 	int th_cnt = 0;
-	for(int i = 1; i < argc; i++) {
+	for (int i = 1; i < argc; i++) {
 		char* arg = argv[i];
-		if(*arg != '-') {
-			if(to) from = to;
-			to = strtoull(arg, NULL,10);
+		if (*arg != '-') {
+			if (to) from = to;
+			to = strtoull(arg, NULL, 10);
 			continue;
 		}
 		arg++;
-		switch(*arg) {
-			case 'f':
-				file = arg + 2;
-				break;
-			case 'w':
-				width = atoi(arg + 2);
-				break;
-			case 't':
-				th_cnt = atoi(arg + 2);
-				break;
+		switch (*arg) {
+		case 'f':
+			file = arg + 2;
+			break;
+		case 'w':
+			width = atoi(arg + 2);
+			break;
+		case 't':
+			th_cnt = atoi(arg + 2);
+			break;
 		}
 	}
-	if(to <= from) {
+	if (to <= from) {
 		printf("\nPrime generator to 2^64\n\nprimegen [from] to [-t:threads] [-f:filename [-w:width]]\n\nfrom - start interval\nto - end interval\nthreads - threads count\nfilename - file to output primes\nwidth - minimum simbols at line\n");
 		printf("\nExample:\nprimegen 10000 -t:4\nprimegen 5000 -f:result.txt\nprimegen 5000 10000 -f:result.txt -w:80\n");
-	} else {
+	}
+	else {
 		FILE* f = NULL;
-		if(file) {
+		if (file) {
 			f = fopen(file, "wb");
-			if(!f) {
+			if (!f) {
 				printf("Error create file '%s'\n", file);
 				return -1;
-			} 
+			}
 		}
 		printf("Calc primes on interval %llu..%llu\n", from, to);
-		if(th_cnt > 1) printf("use %d threads\n", th_cnt);
-		if(f) {
+		if (th_cnt > 1) printf("use %d threads\n", th_cnt);
+		if (f) {
 			printf("output to file '%s'", file);
-			if(width > 0) printf(" %d simbols at line", width);
+			if (width > 0) printf(" %d simbols at line", width);
 			printf("\n");
 		}
 		clock_t s = clock();
 		int cnt;
-		if(th_cnt > 1) {
+		if (th_cnt > 1) {
 			cnt = prime_calc_mt(from, to, f, width, th_cnt);
-		} else {
+		}
+		else {
 			cnt = prime_calc(from, to, f, width);
 		}
-		if(cnt < 0) { // ошибка
-			if(f) {
+		if (cnt < 0) { // РѕС€РёР±РєР°
+			if (f) {
 				fclose(f);
 				remove(file);
 			}
-		} else {
-			if(f) fclose(f);
+		}
+		else {
+			if (f) fclose(f);
 			int time = (int)((clock() - s) * 1000 / CLOCKS_PER_SEC);
-			printf("Count %d primes. Time: %d msec. Speed: %dK/sec\n", cnt, time, cnt / (time|1));
+			printf("Count %d primes. Time: %d msec. Speed: %dK/sec\n", cnt, time, cnt / (time | 1));
 		}
 	}
-	#ifdef _DEBUG
+#ifdef _DEBUG
 	system("pause");
-	#endif
+#endif
 	return 0;
 }
