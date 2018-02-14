@@ -152,7 +152,7 @@ int prime_calc(uint64_t from, uint64_t to, FILE* f, int width)
 	uint64_t show = from; // следующий вывод индикатора
 
 	uint64_t x = next_prime(from);
-	while (x && x < to) {
+	while (x && x <= to) {
 		cnt++;
 		if (f) {
 			if (!prime_store(x, f, width)) break;
